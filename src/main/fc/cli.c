@@ -105,6 +105,7 @@ bool cliMode = false;
 #include "rx/spektrum.h"
 #include "rx/srxl2.h"
 #include "rx/crsf.h"
+#include "drivers/rx/rx_spi.h"
 
 #include "msp/msp_serial.h"
 #include "msp/msp_protocol_v2_common.h"
@@ -222,7 +223,9 @@ static const char *debugModeNames[DEBUG_COUNT] = {
     "HEADTRACKER",
     "GPS",
     "LULU",
-    "SBUS2"
+    "SBUS2",
+    "ELRS_SPI",
+    "ELRS_PHASELOCK"
 };
 
 /* Sensor names (used in lookup tables for *_hardware settings and in status
@@ -3583,6 +3586,13 @@ static void cliDfu(char *cmdline)
 #if defined (USE_SERIALRX_SRXL2)
 void cliRxBind(char *cmdline){
     UNUSED(cmdline);
+#if defined(USE_RX_SPI)
+    if (rxConfig()->receiverType == RX_TYPE_SPI) {
+        rxSpiBind();
+        cliPrint("Binding SPI receiver...");
+        return;
+    }
+#endif
     if (rxConfig()->receiverType == RX_TYPE_SERIAL) {
         switch (rxConfig()->serialrx_provider) {
         default:

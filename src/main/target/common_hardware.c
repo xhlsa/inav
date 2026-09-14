@@ -424,6 +424,10 @@
     BUSDEV_REGISTER_SPI(busdev_max7456,     DEVHW_MAX7456,      MAX7456_SPI_BUS,    MAX7456_CS_PIN,     NONE,           DEVFLAGS_USE_RAW_REGISTERS | DEVFLAGS_SPI_MODE_0,  0);
 #endif
 
+#if defined(USE_RX_SX1280) && defined(SX1280_SPI_BUS)
+    BUSDEV_REGISTER_SPI(busdev_sx1280,      DEVHW_SX1280,       SX1280_SPI_BUS,     SX1280_CS_PIN,      NONE,           DEVFLAGS_SPI_MODE_0,  0);
+#endif
+
 #if defined(USE_FLASH_M25P16) && defined(M25P16_SPI_BUS)
     BUSDEV_REGISTER_SPI(busdev_m25p16,      DEVHW_M25P16,       M25P16_SPI_BUS,     M25P16_CS_PIN,      NONE,           DEVFLAGS_NONE,  0);
 #endif

@@ -44,3 +44,4 @@ void EXTIConfig(IO_t io, extiCallbackRec_t *cb, int irqPriority, EXTITrigger_Typ
 #endif
 void EXTIRelease(IO_t io);
 void EXTIEnable(IO_t io, bool enable);
+void EXTIClearPending(IO_t io);

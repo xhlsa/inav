@@ -20,7 +20,7 @@ tables:
     values: ["NONE", "AUTO", "MS4525", "ADC", "VIRTUAL", "FAKE", "MSP", "DLVR-L10D", "MS5525"]
     enum: pitotSensor_e
   - name: receiver_type
-    values: ["NONE", "SERIAL", "MSP", "SIM (SITL)"]
+    values: ["NONE", "SERIAL", "MSP", "SIM (SITL)", "SPI"]
     enum: rxReceiverType_e
   - name: serial_rx
     values: ["SPEK1024", "SPEK2048", "SBUS", "SUMD", "IBUS", "JETIEXBUS", "CRSF", "FPORT", "SBUS_FAST", "FPORT2", "SRXL2", "GHST", "MAVLINK", "FBUS", "SBUS2"]
@@ -79,12 +79,14 @@ tables:
     values: ["NORMAL", "MEDIUM", "SLOW"]
   - name: i2c_speed
     values: ["400KHZ", "800KHZ", "100KHZ", "200KHZ"]
+  - name: elrs_domain
+    values: ["ISM2400", "CE2400"]
   - name: debug_modes
     values: ["NONE", "AGL", "FLOW_RAW", "FLOW", "ALWAYS", "SAG_COMP_VOLTAGE",
       "VIBE", "CRUISE", "REM_FLIGHT_TIME", "SMARTAUDIO", "ACC",
       "NAV_YAW", "PCF8574", "DYN_GYRO_LPF", "AUTOLEVEL", "ALTITUDE",
       "AUTOTRIM", "AUTOTUNE", "RATE_DYNAMICS", "LANDING", "POS_EST",
-      "ADAPTIVE_FILTER", "HEADTRACKER", "GPS", "LULU", "SBUS2"]
+      "ADAPTIVE_FILTER", "HEADTRACKER", "GPS", "LULU", "SBUS2", "ELRS_SPI", "ELRS_PHASELOCK"]
   - name: aux_operator
     values: ["OR", "AND"]
     enum: modeActivationOperator_e
@@ -794,6 +796,30 @@ groups:
         condition: USE_MSP_RC_OVERRIDE
         min: 0
         max: UINT32_MAX
+
+  - name: PG_RX_EXPRESSLRS_SPI_CONFIG
+    type: rxExpressLrsSpiConfig_t
+    headers: ["rx/expresslrs.h"]
+    condition: USE_RX_EXPRESSLRS
+    members:
+      - name: expresslrs_bind_phrase
+        description: "ExpressLRS binding phrase, identical to the one set on the transmitter. The receiver UID is derived from it at boot. Leave empty to use the UID learned by `bind_rx`, or to start in bind mode if there is none."
+        field: bindPhrase
+        type: string
+        max: 32
+        default_value: ""
+      - name: expresslrs_domain
+        description: "ExpressLRS 2.4GHz regulatory domain. Must match the transmitter (CE2400 is the LBT variant)."
+        field: domain
+        table: elrs_domain
+        type: uint8_t
+        default_value: "ISM2400"
+      - name: expresslrs_model_id
+        description: "ExpressLRS model match ID. 255 disables model match."
+        field: modelId
+        min: 0
+        max: 255
+        default_value: 255
 
   - name: PG_BLACKBOX_CONFIG
     type: blackboxConfig_t

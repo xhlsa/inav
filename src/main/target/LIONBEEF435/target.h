@@ -27,10 +27,12 @@
  * Pin map ported from newbeedrone/2025.12.x-config configs/LIONBEE_V1 and
  * newbeedrone/nbd-betaflight 4.5-release target LIONBEE_V2_REVB.
  *
+ * Onboard ExpressLRS receiver: SX1280 on SPI2, driven by the ported
+ * Betaflight SPI ExpressLRS stack (receiver_type = SPI). ELRS 3.x and 4.x
+ * are separate builds (LIONBEEF435_ELRS3 / LIONBEEF435_ELRS4) and must match
+ * the transmitter's major version.
+ *
  * NOT YET SUPPORTED BY THIS TARGET:
- *  - Onboard ExpressLRS receiver (SX1280 on SPI2). INAV has no SPI RX
- *    support. Default receiver is MSP so the board can be bench-tested
- *    over USB. Pins are reserved below and must not be reused.
  *  - Onboard RTC6705 VTX (SPI3, CS PB2). INAV has no RTC6705 driver, so
  *    the VTX frequency is not programmed. The external PA power-select
  *    lines are exposed as PINIO1/PINIO2 for bench experiments only.
@@ -98,10 +100,29 @@
 #define RTC6705_CS_PIN                  PB2
 #define USE_HARDWARE_PREBOOT_SETUP
 
-// *************** Onboard ELRS (reserved) *********
-// SX1280 on SPI2: SCK PB13, MISO PB14, MOSI PB15, CS PA8,
-// DIO1/EXTI PB3, BUSY PA15, RESET PH3, BIND PH2, LED PB9 (inverted).
+// *************** Onboard ELRS receiver ***********
+#define USE_SPI_DEVICE_2
+#define SPI2_SCK_PIN                    PB13
+#define SPI2_MISO_PIN                   PB14
+#define SPI2_MOSI_PIN                   PB15
+
+#define USE_RX_SPI
+#define USE_RX_EXPRESSLRS
+#define USE_RX_SX1280
+#if !defined(USE_ELRSV3) && !defined(USE_ELRSV4)
+#define USE_ELRSV3
+#endif
+
+#define SX1280_SPI_BUS                  BUS_SPI2
+#define SX1280_CS_PIN                   PA8
+#define RX_SPI_EXTI_PIN                 PB3     // DIO1
+#define RX_EXPRESSLRS_SPI_BUSY_PIN      PA15
+#define RX_EXPRESSLRS_SPI_RESET_PIN     PH3
+#define RX_SPI_BIND_PIN                 PH2
+#define RX_SPI_LED_PIN                  PB9
+#define RX_SPI_LED_INVERTED
 // Betaflight 2025.12 uses TMR5 for ELRS timing, so motors avoid TMR5.
+#define RX_EXPRESSLRS_TIMER_INSTANCE    TMR5
 // Gyro EXTI is PC13 (unused by INAV's ICM42605/BMI270 drivers).
 
 // *************** I2C: Baro / Mag *****************
@@ -132,8 +153,7 @@
 
 #define SERIAL_PORT_COUNT               2   // VCP, UART5
 
-// Until the onboard receiver is supported, control over MSP (USB).
-#define DEFAULT_RX_TYPE                 RX_TYPE_MSP
+#define DEFAULT_RX_TYPE                 RX_TYPE_SPI
 
 // *************** ADC *****************************
 #define USE_ADC
