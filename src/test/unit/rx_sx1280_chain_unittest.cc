@@ -87,6 +87,8 @@ static uint32_t busyUntilUs;
 static uint32_t txDoneAtUs;
 static std::mt19937 rng;
 static uint32_t maxBusyUs = 600;
+static uint32_t stuckBusyAfterSetRxUs;   // >0: BUSY stays high this long after the next SET_RX
+static uint32_t stuckBusyAfterPacketStatusUs;   // same, after the next GET_PACKETSTATUS
 static uint8_t rxPacket[ELRS_RX_TX_BUFF_SIZE];
 static uint8_t telemetryWritten[ELRS_RX_TX_BUFF_SIZE];
 
@@ -214,6 +216,14 @@ static void radioCommand(const uint8_t *tx, uint8_t *rx, int length, const uint8
 
     // BUSY asserts after each command for a random time, sometimes not at all
     uint32_t busyFor = (rng() % 4 == 0) ? 0 : (rng() % (maxBusyUs + 1));
+    if (cmd == SX1280_RADIO_SET_RX && stuckBusyAfterSetRxUs) {
+        busyFor = stuckBusyAfterSetRxUs;
+        stuckBusyAfterSetRxUs = 0;
+    }
+    if (cmd == SX1280_RADIO_GET_PACKETSTATUS && stuckBusyAfterPacketStatusUs) {
+        busyFor = stuckBusyAfterPacketStatusUs;
+        stuckBusyAfterPacketStatusUs = 0;
+    }
     busyUntilUs = simUs + busyFor;
     updateRadioLines();
 }
@@ -243,6 +253,8 @@ static void resetSim(uint32_t seed)
     processedSinceTelem = 0;
     clearBeforeDispatch = true;
     maxBusyUs = 600;
+    stuckBusyAfterSetRxUs = 0;
+    stuckBusyAfterPacketStatusUs = 0;
 }
 
 static void startRadio(void)
@@ -352,6 +364,81 @@ TEST(RxSx1280ChainUnitTest, FhssFromTockWhenIdleAndWhenBusy)
 
     EXPECT_EQ(50, packetsProcessed);
     EXPECT_EQ(hopsExpected, setFreqCount);
+    EXPECT_EQ(0, transfersWhileBusy);
+    EXPECT_TRUE(exti[LINE_DIO1].enabled);
+}
+
+// A hop whose BUSY wait is abandoned by the tick timeout (radio stuck busy for
+// longer than SX1280_BUSY_TIMEOUT_US) must stay pending and be sent later,
+// not be forgotten. Covers every way a hop waits on BUSY: started directly by
+// the tock timer, deferred to the end of a packet chain, and requested inside
+// the packet chain itself (sx1280IsFhssReq).
+TEST(RxSx1280ChainUnitTest, HopAbandonedByBusyTimeoutIsRetried)
+{
+    resetSim(11);
+    startRadio();
+    maxBusyUs = 0;   // otherwise BUSY is deterministic here
+
+    // 1. Tock starts a hop while the radio is idle in the chain sense but BUSY is stuck
+    busyUntilUs = simUs + 5000;
+    updateRadioLines();
+    fhssRequested = true;
+    sx1280HandleFromTock();
+    step(1500);
+    EXPECT_TRUE(sx1280HandleFromTick());     // abandons the wait
+    step(5000);                              // BUSY finally drops
+    EXPECT_EQ(0, setFreqCount);              // nothing sent yet
+
+    receivePacket(1);                        // next chain must carry the hop
+    step(4000);
+    EXPECT_EQ(1, packetsProcessed);
+    EXPECT_EQ(1, setFreqCount);
+
+    // 2. Hop deferred during a chain, then its wait at the chain's end is abandoned
+    stuckBusyAfterSetRxUs = 5000;
+    receivePacket(2);
+    step(1);                                 // chain in progress
+    fhssRequested = true;
+    sx1280HandleFromTock();                  // deferred
+    step(1500);                              // chain reaches SET_RX, then waits on stuck BUSY
+    EXPECT_TRUE(sx1280HandleFromTick());
+    step(5000);
+    EXPECT_EQ(1, setFreqCount);
+
+    receivePacket(3);
+    step(4000);
+    EXPECT_EQ(3, packetsProcessed);
+    EXPECT_EQ(2, setFreqCount);
+
+    // 3. Hop requested inside the packet chain, whose BUSY wait is abandoned
+    stuckBusyAfterPacketStatusUs = 5000;
+    fhssRequested = true;                    // consumed by sx1280IsFhssReq in this chain
+    receivePacket(4);
+    step(1500);
+    EXPECT_TRUE(sx1280HandleFromTick());
+    step(5000);
+    EXPECT_EQ(2, setFreqCount);
+
+    receivePacket(5);
+    step(4000);
+    EXPECT_EQ(5, packetsProcessed);
+    EXPECT_EQ(3, setFreqCount);
+
+    // 4. With no packets arriving (a radio on the wrong channel hears nothing),
+    //    the next tock must retry the abandoned hop, not wait for a packet chain
+    busyUntilUs = simUs + 5000;
+    updateRadioLines();
+    fhssRequested = true;
+    sx1280HandleFromTock();
+    step(1500);
+    EXPECT_TRUE(sx1280HandleFromTick());
+    step(5000);
+    EXPECT_EQ(3, setFreqCount);
+    sx1280HandleFromTock();                  // ordinary tock, no new hop due
+    step(2000);
+    EXPECT_EQ(4, setFreqCount);
+    EXPECT_EQ(5, packetsProcessed);
+
     EXPECT_EQ(0, transfersWhileBusy);
     EXPECT_TRUE(exti[LINE_DIO1].enabled);
 }
