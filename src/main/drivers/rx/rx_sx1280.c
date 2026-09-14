@@ -724,6 +724,7 @@ static busStatus_e sx1280GetStatsCmdComplete(void);
 static busStatus_e sx1280IsFhssReq(void);
 static void sx1280SetFrequency(extiCallbackRec_t *cb);
 static busStatus_e sx1280SetFreqComplete(void);
+static busStatus_e sx1280SetFreqCmdComplete(void);
 static void sx1280StartReceivingChain(extiCallbackRec_t *cb);
 static busStatus_e sx1280EnableIRQs(void);
 static void sx1280SendTelemetryBuffer(extiCallbackRec_t *cb);
@@ -926,13 +927,16 @@ void sx1280HandleFromTock(void)
     bool startFhss = false;
 
     ATOMIC_BLOCK(NVIC_PRIO_MAX) {
-        if (expressLrsIsFhssReq()) {
-            if (sx1280MarkBusy()) {
-                pendingDoFHSS = false;
-                startFhss = true;
-            } else {
-                pendingDoFHSS = true;
-            }
+        // Evaluate the hop request first: it has side effects (advances the channel)
+        const bool hopDue = expressLrsIsFhssReq();
+        // A hop stays pending until the frequency command has actually been sent.
+        // Retrying a pending one here too, every tock, bounds recovery from a BUSY
+        // wait abandoned by sx1280HandleFromTick() to one packet period: a radio
+        // left on the wrong channel receives no packets, so waiting for the next
+        // packet chain to retry could take a whole hop interval.
+        if (hopDue || pendingDoFHSS) {
+            pendingDoFHSS = true;
+            startFhss = sx1280MarkBusy();
         }
     }
 
@@ -946,6 +950,7 @@ void sx1280HandleFromTock(void)
 static busStatus_e sx1280IsFhssReq(void)
 {
     if (expressLrsIsFhssReq()) {
+        pendingDoFHSS = true;   // until sent: this BUSY wait can be abandoned too
         sx1280SetBusyFn(sx1280SetFrequency);
     } else {
         sx1280SetFreqComplete();
@@ -959,9 +964,6 @@ static void sx1280SetFrequency(extiCallbackRec_t *cb)
 {
     UNUSED(cb);
 
-    // This hop services any request deferred from the tock timer
-    pendingDoFHSS = false;
-
     uint32_t currentFreq = expressLrsGetCurrentFreq();
 
     sx1280ClearBusyFn();
@@ -972,19 +974,27 @@ static void sx1280SetFrequency(extiCallbackRec_t *cb)
     setFreqCmd[3] = (uint8_t)(currentFreq & 0xFF);
 
     static const sx1280Segment_t segments[] = {
-            {setFreqCmd, NULL, sizeof(setFreqCmd), true, sx1280SetFreqComplete},
+            {setFreqCmd, NULL, sizeof(setFreqCmd), true, sx1280SetFreqCmdComplete},
             {NULL, NULL, 0, false, NULL},
     };
 
     sx1280RunSegments(segments);
 }
 
+// The frequency command has been sent: only now is a pending hop serviced.
+// pendingDoFHSS is cleared here and nowhere else. Clearing it earlier lost hops
+// two ways (both latent in Betaflight): sx1280SetFreqComplete() is also reached
+// WITHOUT hopping (from sx1280IsFhssReq), which dropped a hop the tock timer had
+// deferred during the chain; and a BUSY wait abandoned by sx1280HandleFromTick()
+// never sent the command at all. Either left the radio on the previous channel.
+static busStatus_e sx1280SetFreqCmdComplete(void)
+{
+    pendingDoFHSS = false;
+
+    return sx1280SetFreqComplete();
+}
+
 // Determine if we need to go back to RX or if we need to send TLM data
-//
-// Unlike Betaflight, pendingDoFHSS is not cleared here: this is also reached
-// without hopping (from sx1280IsFhssReq), and clearing it then dropped a hop
-// the tock timer had deferred while this chain was running, leaving the radio
-// on the previous channel for a whole hop interval.
 static busStatus_e sx1280SetFreqComplete(void)
 {
     if (expressLrsTelemRespReq()) {
@@ -1021,7 +1031,6 @@ static void sx1280StartReceivingChain(extiCallbackRec_t *cb)
 static busStatus_e sx1280EnableIRQs(void)
 {
     if (pendingDoFHSS) {
-        pendingDoFHSS = false;
         sx1280SetBusyFn(sx1280SetFrequency);
     } else {
         // Switch back to waiting for EXTI interrupt
