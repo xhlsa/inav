@@ -197,6 +197,12 @@ main_sources(COMMON_SRC
     drivers/display_ug2864hsweg01.c
     drivers/display_ug2864hsweg01.h
     drivers/exti.c
+    drivers/rx/expresslrs_driver.c
+    drivers/rx/expresslrs_driver.h
+    drivers/rx/rx_spi.c
+    drivers/rx/rx_spi.h
+    drivers/rx/rx_sx1280.c
+    drivers/rx/rx_sx1280.h
     drivers/exti.h
     drivers/flash.c
     drivers/flash.h
@@ -453,6 +459,16 @@ main_sources(COMMON_SRC
     programming/pid.h
 
     rx/crsf.c
+    rx/expresslrs.c
+    rx/expresslrs.h
+    rx/expresslrs_bind.c
+    rx/expresslrs_common.c
+    rx/expresslrs_common.h
+    rx/expresslrs_impl.h
+    rx/expresslrs_telemetry.c
+    rx/expresslrs_telemetry.h
+    rx/rx_spi.c
+    rx/rx_spi.h
     rx/crsf.h
     rx/fport.c
     rx/fport.h

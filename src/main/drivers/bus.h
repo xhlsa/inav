@@ -152,6 +152,7 @@ typedef enum {
     DEVHW_IRLOCK,       // IR-Lock visual positioning hardware
     DEVHW_PCF8574,      // 8-bit I/O expander
     DEVHW_INA226,       // I2C current and voltage monitor
+    DEVHW_SX1280,       // SPI ExpressLRS 2.4GHz receiver radio
 } devHardwareType_e;
 
 typedef enum {

@@ -106,6 +106,7 @@ bool cliMode = false;
 #include "rx/spektrum.h"
 #include "rx/srxl2.h"
 #include "rx/crsf.h"
+#include "drivers/rx/rx_spi.h"
 
 #include "msp/msp_serial.h"
 #include "msp/msp_protocol_v2_common.h"
@@ -234,7 +235,9 @@ static const char *debugModeNames[DEBUG_COUNT] = {
     "VTOL_TRANSITION",
     "VTOL_MC_PROTECT",
     "TERRAIN_NAV",
-    "ESC"
+    "ESC",
+    "ELRS_SPI",
+    "ELRS_PHASELOCK"
 };
 
 /* Sensor names (used in lookup tables for *_hardware settings and in status
@@ -3621,9 +3624,16 @@ static void cliDfu(char *cmdline)
     cliRebootEx(true);
 }
 
-#if defined (USE_SERIALRX_SRXL2)
+#if defined(USE_SERIALRX_SRXL2) || defined(USE_RX_SPI)
 void cliRxBind(char *cmdline){
     UNUSED(cmdline);
+#if defined(USE_RX_SPI)
+    if (rxConfig()->receiverType == RX_TYPE_SPI) {
+        rxSpiBind();
+        cliPrint("Binding SPI receiver...");
+        return;
+    }
+#endif
     if (rxConfig()->receiverType == RX_TYPE_SERIAL) {
         switch (rxConfig()->serialrx_provider) {
         default:
@@ -4032,7 +4042,15 @@ static void cliSet(char *cmdline)
                 const setting_type_e type = SETTING_TYPE(val);
                 if (type == VAR_STRING) {
                     // Convert strings to uppercase. Lower case is not supported by the OSD.
-                    sl_toupperptr(eqptr);
+                    // Except the ELRS bind phrase: the link UID is an MD5 of the exact,
+                    // case-sensitive phrase, so uppercasing it breaks binding.
+                    bool keepCase = false;
+#ifdef USE_RX_EXPRESSLRS
+                    keepCase = strcmp(name, "expresslrs_bind_phrase") == 0;
+#endif
+                    if (!keepCase) {
+                        sl_toupperptr(eqptr);
+                    }
                     // if setting the craftname, remove any quotes around the name.  This allows leading spaces in the name
                     if ((strcmp(name, "name") == 0 || strcmp(name, "pilot_name") == 0) && (eqptr[0] == '"' && eqptr[strlen(eqptr)-1] == '"')) {
                         settingSetString(val, eqptr + 1, strlen(eqptr)-2);
@@ -4962,7 +4980,7 @@ const clicmd_t cmdTable[] = {
             "\t<+|->[name]", cliBeeper),
 #endif
     CLI_COMMAND_DEF("bind_msp_rx", "initiate binding for MSP receivers (mLRS)", "<port>", cliBindMspRx),
-#if defined (USE_SERIALRX_SRXL2)
+#if defined(USE_SERIALRX_SRXL2) || defined(USE_RX_SPI)
     CLI_COMMAND_DEF("bind_rx", "initiate binding for RX SPI or SRXL2", NULL, cliRxBind),
 #endif
 #if defined(USE_BOOTLOG)

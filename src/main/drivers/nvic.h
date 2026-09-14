@@ -9,6 +9,11 @@
 #define NVIC_PRIO_MAX                       1
 #define NVIC_PRIO_I2C_ER                    2
 #define NVIC_PRIO_I2C_EV                    2
+// ExpressLRS SPI receiver: the tick/tock timer must be able to preempt the radio
+// EXTI chain (as in Betaflight), and both must preempt DShot/timer DMA.
+#define NVIC_PRIO_RX_ELRS_TIMER             2
+#define NVIC_PRIO_RX_INT_EXTI               3
+#define NVIC_PRIO_RX_BUSY_EXTI              3
 #define NVIC_PRIO_TIMER                     3
 #define NVIC_PRIO_TIMER_DMA                 3
 #define NVIC_PRIO_SDIO                      3

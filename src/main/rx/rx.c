@@ -56,6 +56,7 @@
 #include "rx/fport.h"
 #include "rx/fport2.h"
 #include "rx/msp.h"
+#include "rx/rx_spi.h"
 #include "rx/msp_override.h"
 #include "rx/sbus.h"
 #include "rx/spektrum.h"
@@ -311,6 +312,17 @@ void rxInit(void)
 #ifdef USE_RX_MSP
         case RX_TYPE_MSP:
             rxMspInit(rxConfig(), &rxRuntimeConfig);
+            break;
+#endif
+
+#ifdef USE_RX_SPI
+        case RX_TYPE_SPI:
+            if (!rxSpiInit(rxConfig(), &rxRuntimeConfig)) {
+                // Leave the configured type alone so a hardware fault does not
+                // silently rewrite the saved receiver setting
+                rxRuntimeConfig.rcReadRawFn = nullReadRawRC;
+                rxRuntimeConfig.rcFrameStatusFn = nullFrameStatus;
+            }
             break;
 #endif
 

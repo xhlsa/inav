@@ -84,6 +84,8 @@ typedef enum {
     DEBUG_VTOL_MC_PROTECT,
     DEBUG_TERRAIN_NAV,
     DEBUG_ESC,
+    DEBUG_RX_EXPRESSLRS_SPI,
+    DEBUG_RX_EXPRESSLRS_PHASELOCK,
     DEBUG_COUNT // also update debugModeNames in cli.c
 } debugType_e;
 

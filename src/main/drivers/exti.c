@@ -212,6 +212,14 @@ void EXTIEnable(IO_t io, bool enable)
 #endif
 }
 
+void EXTIClearPending(IO_t io)
+{
+    uint32_t extiLine = IO_EXTI_Line(io);
+    if (!extiLine)
+        return;
+    EXTI_REG_PR = extiLine;  // clear pending mask (by writing 1)
+}
+
 void EXTI_IRQHandler(void)
 {
     uint32_t exti_active = EXTI_REG_IMR & EXTI_REG_PR;
