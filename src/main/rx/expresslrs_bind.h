@@ -18,30 +18,10 @@
  * If not, see <http://www.gnu.org/licenses/>.
  */
 
-/*
- * Author: Dominic Clifton / Seriously Pro Racing (Betaflight)
- */
-
 #pragma once
 
-#include <stdbool.h>
 #include <stdint.h>
 
-// timer is the platform timer instance (HAL_Timer_t *), e.g. TMR5
-bool expressLrsInitialiseTimer(void *timer);
-void expressLrsTimerEnableIRQs(void);
-void expressLrsUpdateTimerInterval(uint16_t intervalUs);
-void expressLrsUpdatePhaseShift(int32_t newPhaseShift);
-void expressLrsOnTimerTickISR(void);
-void expressLrsOnTimerTockISR(void);
-
-void expressLrsTimerIncreaseFrequencyOffset(void);
-void expressLrsTimerDecreaseFrequencyOffset(void);
-void expressLrsTimerResetFrequencyOffset(void);
-
-void expressLrsTimerStop(void);
-void expressLrsTimerResume(void);
-
-bool expressLrsTimerIsRunning(void);
-
-void expressLrsTimerDebug(void);
+// Derive the 6 byte UID from a binding phrase exactly as the ExpressLRS build
+// and web UI do: MD5("-DMY_BINDING_PHRASE=\"<phrase>\"")[0..5]
+void elrsUidFromBindPhrase(const char *phrase, uint8_t uid[6]);

@@ -33,7 +33,7 @@
 
 #ifdef USE_RX_EXPRESSLRS
 
-#include "rx/expresslrs_common.h"
+#include "rx/expresslrs_bind.h"
 
 typedef struct {
     uint32_t state[4];

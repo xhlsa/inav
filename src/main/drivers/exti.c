@@ -220,15 +220,33 @@ void EXTIClearPending(IO_t io)
     EXTI_REG_PR = extiLine;  // clear pending mask (by writing 1)
 }
 
+void EXTITriggerSoftware(IO_t io)
+{
+    uint32_t extiLine = IO_EXTI_Line(io);
+    if (!extiLine)
+        return;
+#if defined(AT32F43x)
+    EXINT->swtrg |= extiLine;
+#elif defined(STM32H7)
+    EXTI->SWIER1 |= extiLine;
+#else
+    EXTI->SWIER |= extiLine;
+#endif
+}
+
 void EXTI_IRQHandler(void)
 {
     uint32_t exti_active = EXTI_REG_IMR & EXTI_REG_PR;
+
+    // Clear before dispatching (as Betaflight does): an edge on the same line
+    // while its handler runs, or a line the handler re-arms or triggers, must
+    // stay pending rather than be wiped when the handler returns.
+    EXTI_REG_PR = exti_active;
 
     while (exti_active) {
         unsigned idx = 31 - __builtin_clz(exti_active);
         uint32_t mask = 1 << idx;
         extiChannelRecs[idx].handler->fn(extiChannelRecs[idx].handler);
-        EXTI_REG_PR = mask;  // clear pending mask (by writing 1)
         exti_active &= ~mask;
     }
 }

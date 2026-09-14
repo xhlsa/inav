@@ -203,8 +203,10 @@ void expressLrsTimerResume(void)
     tmr_event_sw_trigger(timer, TMR_OVERFLOW_SWTRIG);
 }
 
-bool expressLrsInitialiseTimer(HAL_Timer_t *t)
+bool expressLrsInitialiseTimer(void *timerInstance)
 {
+    HAL_Timer_t *t = (HAL_Timer_t *)timerInstance;
+
     int timerIndex = -1;
     for (int i = 0; i < HARDWARE_TIMER_DEFINITION_COUNT; i++) {
         if (timerDefinitions[i].tim == t) {

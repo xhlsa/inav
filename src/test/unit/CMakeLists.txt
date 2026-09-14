@@ -23,6 +23,18 @@ set_property(SOURCE rcdevice_unittest.cc PROPERTY depends
     "common/bitarray.c" "common/crc.c" "io/rcdevice.c" "io/rcdevice_cam.c"
     "fc/rc_modes.c" "common/maths.c")
 
+set(RX_EXPRESSLRS_TEST_DEPENDS "rx/expresslrs.c" "rx/expresslrs_common.c" "rx/expresslrs_bind.c")
+set(RX_EXPRESSLRS_TEST_DEFINITIONS USE_RX_SPI USE_RX_EXPRESSLRS USE_RX_SX1280)
+set_property(SOURCE rx_expresslrs_v3_unittest.cc PROPERTY depends ${RX_EXPRESSLRS_TEST_DEPENDS})
+set_property(SOURCE rx_expresslrs_v3_unittest.cc PROPERTY definitions ${RX_EXPRESSLRS_TEST_DEFINITIONS} USE_ELRSV3)
+set_property(SOURCE rx_expresslrs_v4_unittest.cc PROPERTY depends ${RX_EXPRESSLRS_TEST_DEPENDS})
+set_property(SOURCE rx_expresslrs_v4_unittest.cc PROPERTY definitions ${RX_EXPRESSLRS_TEST_DEFINITIONS} USE_ELRSV4)
+
+set_property(SOURCE rx_sx1280_chain_unittest.cc PROPERTY depends "drivers/rx/rx_sx1280.c" "drivers/rx/rx_spi.c")
+set_property(SOURCE rx_sx1280_chain_unittest.cc PROPERTY definitions USE_RX_SPI USE_RX_EXPRESSLRS USE_RX_SX1280 USE_ELRSV4
+    RX_SPI_EXTI_PIN=PB3 RX_SPI_BIND_PIN=PA2 RX_SPI_LED_PIN=PA9
+)
+
 set_property(SOURCE sensor_gyro_unittest.cc PROPERTY depends
     "build/debug.c" "common/maths.c" "common/calibration.c" "common/filter.c"
     "drivers/accgyro/accgyro_fake.c" "sensors/gyro.c" "sensors/boardalignment.c")
