@@ -462,6 +462,7 @@ main_sources(COMMON_SRC
     rx/expresslrs.c
     rx/expresslrs.h
     rx/expresslrs_bind.c
+    rx/expresslrs_bind.h
     rx/expresslrs_common.c
     rx/expresslrs_common.h
     rx/expresslrs_impl.h

@@ -27,10 +27,11 @@
  * Betaflight drives the packet path as a chain of non-blocking DMA SPI
  * sequences: each step's completion callback waits for the radio BUSY line to
  * fall (via EXTI) and then starts the next step. INAV's SPI layer is blocking,
- * so each step's transfer here is performed synchronously inside the callback
- * that starts it (a few bytes, well under 100us), while the BUSY waits between
- * steps remain interrupt driven exactly as in Betaflight. The radio is the only
- * device on its SPI bus.
+ * so each step's transfer here is performed synchronously inside the BUSY
+ * interrupt that starts it (a few bytes, well under 100us). The BUSY waits
+ * between steps remain interrupt driven as in Betaflight; when BUSY is already
+ * low the BUSY EXTI is raised in software, so each step still runs in its own
+ * interrupt. The radio is the only device on its SPI bus.
  *
  * Mutual exclusion:
  *  - A packet chain (DIO1 EXTI) or FHSS chain (tock timer) only starts if no
@@ -67,6 +68,10 @@
 #include "rx/expresslrs.h"
 #include "rx/expresslrs_common.h"
 #include "rx/expresslrs_impl.h"
+
+#if defined(UNIT_TEST) && !defined(__NOP)
+#define __NOP()
+#endif
 
 // Radio IRQ sources that can start or advance a chain
 #define NVIC_PRIO_SX1280_ALL NVIC_PRIO_RX_ELRS_TIMER
@@ -189,27 +194,21 @@ static void sx1280BusyExtiHandler(extiCallbackRec_t *cb)
     }
 }
 
-// Run waitingFn as soon as the radio is no longer busy: now if it is idle,
-// else from the BUSY falling edge interrupt.
+// Run waitingFn from the BUSY interrupt as soon as the radio is no longer busy:
+// on the falling edge, or immediately (software-triggered) if it is already idle.
+// Every chain step therefore runs in its own interrupt invocation, which keeps
+// stack depth bounded and never runs a step in the caller's context.
 // waitingFn() must call sx1280ClearBusyFn() to prevent repeated calls
 static void sx1280SetBusyFn(extiHandlerCallback *waitingFn)
 {
-    bool sx1280Busy;
-
     ATOMIC_BLOCK(NVIC_PRIO_RX_BUSY_EXTI) {
+        busyWaitingFn = waitingFn;
         // Drop a falling edge latched while nobody was waiting for it
         EXTIClearPending(busy);
-        sx1280Busy = IORead(busy);
-        if (sx1280Busy) {
-            busyWaitingFn = waitingFn;
-            EXTIEnable(busy, true);
-        } else {
-            EXTIEnable(busy, false);
+        EXTIEnable(busy, true);
+        if (!IORead(busy)) {
+            EXTITriggerSoftware(busy);
         }
-    }
-
-    if (!sx1280Busy) {
-        waitingFn(&busyExti);
     }
 }
 
@@ -960,6 +959,9 @@ static void sx1280SetFrequency(extiCallbackRec_t *cb)
 {
     UNUSED(cb);
 
+    // This hop services any request deferred from the tock timer
+    pendingDoFHSS = false;
+
     uint32_t currentFreq = expressLrsGetCurrentFreq();
 
     sx1280ClearBusyFn();
@@ -978,10 +980,13 @@ static void sx1280SetFrequency(extiCallbackRec_t *cb)
 }
 
 // Determine if we need to go back to RX or if we need to send TLM data
+//
+// Unlike Betaflight, pendingDoFHSS is not cleared here: this is also reached
+// without hopping (from sx1280IsFhssReq), and clearing it then dropped a hop
+// the tock timer had deferred while this chain was running, leaving the radio
+// on the previous channel for a whole hop interval.
 static busStatus_e sx1280SetFreqComplete(void)
 {
-    pendingDoFHSS = false;
-
     if (expressLrsTelemRespReq()) {
         expressLrsDoTelem();
         // if it's time to do TLM and we have enough to do so

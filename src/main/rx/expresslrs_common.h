@@ -31,6 +31,7 @@
 #include "drivers/io_types.h"
 #include "drivers/time.h"
 
+#include "rx/expresslrs_bind.h"
 #include "rx/expresslrs_telemetry.h"
 #include "drivers/rx/rx_sx1280.h"
 
@@ -388,7 +389,4 @@ void meanAccumulatorInit(meanAccumulator_t *filter);
 void meanAccumulatorAdd(meanAccumulator_t *filter, const int8_t newVal);
 int8_t meanAccumulatorCalc(meanAccumulator_t *filter, const int8_t defaultValue);
 
-// Derive the 6 byte UID from a binding phrase exactly as the ExpressLRS build
-// and web UI do: MD5("-DMY_BINDING_PHRASE=\"<phrase>\"")[0..5]
-void elrsUidFromBindPhrase(const char *phrase, uint8_t uid[6]);
 uint8_t airRateIndexToIndex900(uint8_t airRate, uint8_t currentIndex);

@@ -146,27 +146,21 @@ void rxSpiExtiInit(rxSpiExtiHandlerFn *handler)
 // (Re-)arm the DIO interrupt. Called from interrupt and task context once the
 // radio is idle. The DIO line is level-high while an IRQ is pending in the radio,
 // so a rising edge that happened while the previous sequence ran would otherwise
-// be lost: check the level and service it immediately.
+// be lost: check the level and raise the interrupt if it is already high.
 void rxSpiEnableExti(void)
 {
     if (!extiPin) {
         return;
     }
 
-    bool pending;
-
     ATOMIC_BLOCK(NVIC_PRIO_RX_INT_EXTI) {
         EXTIClearPending(extiPin);
         EXTIEnable(extiPin, true);
-        pending = IORead(extiPin);
-        if (pending) {
-            // Serviced directly below; drop any edge latched meanwhile
-            EXTIClearPending(extiPin);
+        if (IORead(extiPin)) {
+            // Service it from the interrupt, never by calling the handler from
+            // here: this may be task context or deep inside a previous chain
+            EXTITriggerSoftware(extiPin);
         }
-    }
-
-    if (pending) {
-        rxSpiExtiHandler(NULL);
     }
 }
 
