@@ -117,6 +117,8 @@ struct {
     {0xE04016, 1024, 16},
     // JEDEC_ID_EON_W25Q64
     {0x1C3017, 128, 256},
+    // Boya BY25Q64 (NewBeeDrone LionBee); same entry as Betaflight
+    {0x684017, 128, 256},
     // JEDEC_ID_SPANSION_S25FL116
     {0x014015, 32, 256 },
     // JEDEC_ID_XTX_XT25F128F
