@@ -4001,6 +4001,11 @@ static void cliSet(char *cmdline)
                 const setting_type_e type = SETTING_TYPE(val);
                 if (type == VAR_STRING) {
                     // Convert strings to uppercase. Lower case is not supported by the OSD.
+                    // Except the ELRS bind phrase: the link UID is an MD5 of the exact,
+                    // case-sensitive phrase, so uppercasing it breaks binding.
+#ifdef USE_RX_EXPRESSLRS
+                    if (strcmp(name, "expresslrs_bind_phrase") != 0)
+#endif
                     sl_toupperptr(eqptr);
                     // if setting the craftname, remove any quotes around the name.  This allows leading spaces in the name
                     if ((strcmp(name, "name") == 0 || strcmp(name, "pilot_name") == 0) && (eqptr[0] == '"' && eqptr[strlen(eqptr)-1] == '"')) {
